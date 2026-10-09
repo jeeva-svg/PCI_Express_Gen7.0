@@ -181,7 +181,9 @@ These were found during the assessment and are listed so they are not mistaken f
 ## 06 Issue register
 
 Common to every entry:
+- **Tool versions:** xezim 0.11.1, build A `0.11.1-45-g83df0dd5` and build B `23f3728c` (both print `=== xezim 0.11.1 ===` and their git hash in every log). Reference: Verilator 5.050. UVM: Accellera 1.2 unless stated.
 - **Builds:** reproduced on build A (`83df0dd5`) and build B (`23f3728c`).
+- **Reproduction steps:** `cd dv/eval/cases2`, then run the command given in the entry (or `./run_cases.sh <case>.sv` to run it on build A, build B and Verilator and store the logs).
 - **Command:** `XEZIM_UVM_DIR=~/uvm XEZIM_UVM_VERSION=1.2 xezim [-uvm] -s <top> <file>`, unless stated; exact commands are in `cases2/results/<case>.xezim.cmd`.
 - **Logs:** the complete logs are in `cases2/results/<case>.<simulator>.log`. The lines quoted below are the complete relevant output: the version banner (`=== xezim 0.11.1 ===`, `git <hash>`) and the closing `Simulation finished` line are omitted.
 - **Exit status:** 0 unless stated. Every silent defect below exits 0.
@@ -262,6 +264,7 @@ Common to every entry:
   - In UVM this breaks `uvm_do*` and `uvm_create`, which call `SEQ_OR_ITEM.get_type()`.
   - The sequence logs `RNDFLD Randomization failed in uvm_do_with action` and drives nothing.
 - **Reproducers:** `cases2/e_static_call_via_handle.sv`; UVM form `e_u05_member_n_original.sv` (U05 as first written, test class named `t`).
+- **Command:** `xezim -s top e_static_call_via_handle.sv`; UVM form `xezim -uvm -s top --max-time 1ms +incdir+../uvm_suite e_u05_member_n_original.sv +UVM_TESTNAME=t`
 - **Log (build A, exit 0):** `RESULT t.who() with 'item t' in scope: class t (expect class item)`. UVM form: `UVM_WARNING ... [RNDFLD] Randomization failed in uvm_do_with action`.
 - **Verilator (exit 0):** `RESULT t.who() with 'item t' in scope: class item (expect class item)`
 - **Reference:** none in the docs; source not isolated.
@@ -301,6 +304,7 @@ Common to every entry:
 - **Observed:** the copy holds the wrong characters (`" " ( "` for `first`). Straight-line character writes work (`e_string_char_write.sv`).
 - **UVM effect:** UVM 1.2 `uvm_packer::unpack_string` (`uvm_packer.svh` lines 1010 to 1035) and 1800.2 (lines 1161 to 1184) use exactly this loop. Unpacked strings come back corrupted, and U08-03 fails on all three UVM libraries.
 - **Reproducers:** `cases2/e_fn_return_string_index.sv`, `e_packer_string.sv` (UVM).
+- **Command:** `xezim -s t e_fn_return_string_index.sv`; UVM form `xezim -uvm -s top --max-time 1ms e_packer_string.sv`
 - **Log (build A, exit 0):** `RESULT return-variable: " " ( "  local variable: " " ( "  class method return-variable: " " ( " (expect first first first)`; UVM: `RESULT unpack_string=" " ( " (len 5), next int=000000000000cafe (expect "first" len 5, cafe)`
 - **Verilator (exit 0):** `RESULT return-variable: "first"  local variable: "first"  class method return-variable: "first"`
 - **Reference:** none; source not isolated.
@@ -348,6 +352,7 @@ Common to every entry:
 - **Expected:** `wait(e.triggered)` returns if `e` was triggered earlier in the same time step (IEEE 1800-2017 15.5.3).
 - **Observed:** when the trigger comes first, the waiter does not wake (0 of 1).
 - **Reproducers:** `cases2/e_event_ptrigger_race.sv`; UVM form `e_uvm_event_ptrigger.sv` (the run ends at time 5 without the waiter's message, exit 0).
+- **Command:** `xezim -s t e_event_ptrigger_race.sv`
 - **Log (build A, exit 0):** `RESULT trigger-first woke=0, wait-first woke=1 (expect 1 1)`
 - **Verilator (exit 0):** `RESULT trigger-first woke=1, wait-first woke=1 (expect 1 1)`
 - **Reference:** the trigger-time state is `event_triggered_time` in `src/compiler/simulator.rs` line 7412. The failing comparison was not isolated.
@@ -363,6 +368,7 @@ Common to every entry:
   - Held in a queue, both instances read 0%.
   - The same code in a module works (U09-11 fails).
 - **Reproducers:** `cases2/e_cg_two_inst_class.sv`, `e_cg_two_inst_variants.sv`, `e_cg_pkg_noargs_class.sv`.
+- **Command:** `xezim -s top e_cg_pkg_noargs_class.sv`; suite form U09-11 in `uvm_suite/u09_coverage.sv` (`./run_suite.sh tests xezim`)
 - **Log (build A, exit 0):** `RESULT package cg (no args) in class method: a 0.00 b 50.00 (expect 50.00 50.00)` and `RESULT class method, 2 instances: a 0.00 b 50.00 type 0.00 (expect 50.00 50.00 50.00)`
 - **Verilator (exit 0):** `RESULT package cg (no args) in class method: a 50.00 b 50.00`. Verilator's covergroup support is partial elsewhere, so the classification rests on the IEEE standard.
 - **Reference:** `<base>/docs/coverage-guide.md#L270-L320` ("Every `new()` creates a separate instance with its own hits"). Source not isolated.
@@ -394,6 +400,7 @@ Common to every entry:
 - **Expected:** `val_cg::type_option.merge_instances = 1;` is legal in any procedural code that can see `val_cg`. The documentation shows it as supported.
 - **Observed:** in a class method, `error: Undeclared identifier 'val_cg'`. In a module it works.
 - **Reproducers:** `cases2/e_cg_type_option_scope.sv`, control `e_cg_type_option_module.sv`.
+- **Command:** `xezim -s top e_cg_type_option_scope.sv`
 - **Log (build A, exit 1):** `e_cg_type_option_scope.sv:12:7: error: Undeclared identifier 'val_cg'`
 - **Reference:** `<base>/docs/coverage-guide.md#L292` ("`cg_type::type_option.merge_instances = 1;` at run time").
 - **PCIe impact:** small; merged coverage across instances must be configured another way.
@@ -404,7 +411,9 @@ Common to every entry:
 - **Classification:** Conditional limitation. Severity Low. Not silent: `Simulation error`, exit 1.
 - **Condition:** the call uses a bare assertion label from inside a non-top module or an interface. From the top module, a bare name in the top or a hierarchical name into an instance (`$assertoff(0, u.a_off)`) works.
 - **Expected:** IEEE 1800-2017 20.12 allows naming assertions in the list.
-- **Observed:** `Simulation error: Undeclared identifier 'a_off' at e_assertoff_in_module.sv:7:25`, exit 1.
+- **Observed:** the run aborts at time 0 before any assertion is evaluated.
+- **Command:** `xezim -s top e_assertoff_in_module.sv`
+- **Log (builds A and B, exit 1):** `Simulation error: Undeclared identifier 'a_off' at e_assertoff_in_module.sv:7:25`. Control `e_assertoff_in_top.sv` (exit 0): `RESULT bare_t0: a_on 4 a_off 0 (expect 4 0)`.
 - **Reproducers:** `cases2/e_assertoff_in_module.sv`, `e_assertoff_in_interface.sv`; controls `e_assertoff_in_top.sv`, `e_assertoff_hier.sv`.
 - **Reference:** `<base>/docs/features.md#L23-L27` (assertion control with "a list of scopes or assertion names"). Entry point `src/compiler/simulator/assert_ctl.rs` line 327. Failing lookup not isolated.
 - **PCIe impact:** assertion control inside the SVA interface or bind module is not possible; control must come from the top. Verilator cannot be used as a reference here (it reports no assertion failures).
@@ -416,6 +425,7 @@ Common to every entry:
 - **Expected:** `c.slices = new[1];` on a struct member gives `c.slices.size() == 1`, and struct copies carry the array (IEEE 1800-2017 7.2, 7.5).
 - **Observed:** size 0 after `new[1]`, and 0 in every copy.
 - **Reproducer:** `cases2/e_struct_dynarray_copy.sv`.
+- **Command:** `xezim -s top e_struct_dynarray_copy.sv`
 - **Log (build A, exit 0):** `RESULT sizes: c 0, d=c 0, q[0] 0, decl-init e=q[0] 0, f=q[0] 0 (expect 1 1 1 1 1)`
 - **Verilator (exit 0):** `RESULT sizes: c 1, d=c 1, q[0] 1, decl-init e=q[0] 1, f=q[0] 1`
 - **Reference:** none; source not isolated.
@@ -441,8 +451,10 @@ Common to every entry:
 ### XEZ-UVM-015 · FST dump of the full UVM environment aborts the simulator
 
 - **Classification:** Conditional limitation. Severity Medium. Not silent: abort, exit 134.
+- **Expected:** the run completes and writes an FST file, as it does with VCD (`--wave`) on the same test.
 - **Condition:** `--fst` on the whole PCIe UVM environment. VCD works, and FST limited to the DUT or a single interface works (earlier evaluation, `logs/fst_scope_dut`, `logs/fst_pipe_if` and others).
 - **Observed (build B, rechecked):** `thread 'xezim-fst' panicked at .../fst-writer-0.3.1/src/buffer.rs:117:17: Failed to parse four state value: 00000000000000000000000011101110 for signal of size 1`, exit 134.
+- **Reproducer:** the full PCIe environment (`dv/sim`, test `pcie_link_up_test`, seed 1). Not reduced to a minimal case.
 - **Command:** in `dv/sim`, `xezim -uvm -F rtl.f -F tb.f -s pcie_tb_top -timescale 1ns/1ps --max-time 50ms +UVM_TESTNAME=pcie_link_up_test +seed=1 --fst r1.fst`
 - **Logs:** `xissues_recheck/fst_full.xezim_head.log`; build A: `logs/fst_repro_1/`.
 - **Reference:** the source frame is `src/compiler/fst_sink.rs` line 390. A signal declared 1 bit wide is written with a 32-bit value.
@@ -454,7 +466,7 @@ Common to every entry:
 - **Classification:** Confirmed limitation. Severity High for VIP. Silent.
 - **Expected:** a simulator either decrypts a `pragma protect` envelope or reports that it cannot.
 - **Observed:** the envelope's contents are dropped, the rest of the file runs, no message is printed, and the exit status is 0.
-- **Reproducer:** `cases/c_protect.sv`. Log (build B): `before envelope` / `after envelope`, exit 0. Log: `xissues_recheck/c_protect.xezim_head.log`.
+- **Reproducer:** `cases/c_protect.sv`. Command: `xezim c_protect.sv`. Log (build B): `before envelope` / `after envelope`, exit 0. Log: `xissues_recheck/c_protect.xezim_head.log`.
 - **Reference:** no documentation statement found. [confirm]
 - **PCIe impact:** encrypted commercial PCIe VIP cannot run, and a partially encrypted model would run with parts silently missing.
 - **Workaround:** none in the tool. Use unencrypted or open-source models, or run VIP-based tests on a commercial simulator.
@@ -462,8 +474,9 @@ Common to every entry:
 ### XEZ-UVM-017 · `.name()` on an enum returned by a UVM method prints the wrong name
 
 - **Classification:** Confirmed limitation (UVM-level reproducer only). Severity Low. Silent.
+- **Expected:** `.name()` returns the name of the value in its own enum type: `UVM_WARNING` (IEEE 1800-2017 6.19.5.6).
 - **Observed:** in a report catcher, `get_severity().name()` prints `UVM_PHASE_DORMANT` for `UVM_WARNING`. The same value in a typed variable prints correctly. Equivalent code without UVM works (`e_enum_name_min.sv`, `e_enum_name_pkg.sv`).
-- **Reproducer:** `cases2/e_enum_name.sv`. Log: `RESULT get_severity().name()=UVM_PHASE_DORMANT  local var .name()=UVM_WARNING  value=1 (expect UVM_WARNING UVM_WARNING 1)`
+- **Reproducer:** `cases2/e_enum_name.sv`. Command: `xezim -uvm -s top --max-time 1ms e_enum_name.sv`. Log (exit 0): `RESULT get_severity().name()=UVM_PHASE_DORMANT  local var .name()=UVM_WARNING  value=1 (expect UVM_WARNING UVM_WARNING 1)`
 - **Root cause:** `.name()` on a call result resolves against the wrong enum type, likely the first enum with that value. Not isolated.
 - **PCIe impact:** misleading log messages only.
 - **Workaround:** assign to a typed variable before calling `.name()`.
@@ -472,7 +485,11 @@ Common to every entry:
 
 - **Classification:** Confirmed limitation (documented). Severity High for signoff.
 - **Statement:** `<base>/docs/coverage-guide.md#L848-L862`: "Not supported at all: Condition, expression and FSM coverage ... Coverage databases in other formats (such as UCIS), text or HTML coverage reports, and merging results across runs". The `$coverage_*` system functions are ignored.
-- **Verified:** per-run JSON files are written. `dv/sim/cov_merge.py` merges functional coverage across runs as a project-side workaround.
+- **Verified:**
+  - Reproducer `cases2/e_cov_system_functions.sv`, command `xezim -s top e_cov_system_functions.sv`.
+  - Log (builds A and B, exit 0): `Warning: unknown system task '$coverage_merge' ignored (first use at e_cov_system_functions.sv:6:25)` / `RESULT $coverage_merge returned 0` / `RESULT $coverage_save returned 0`.
+  - Per-run JSON files are written. `dv/sim/cov_merge.py` merges functional coverage across runs as a project-side workaround.
+  - Condition, expression and FSM coverage were not tested beyond this documentation statement.
 - **PCIe impact:** coverage closure for signoff needs a merged database with exclusions and reports. Today that is project scripting, not a tool feature.
 - **Workaround:** project merge scripts for functional coverage; a commercial simulator for code-coverage signoff.
 
@@ -481,6 +498,8 @@ Common to every entry:
 - **Classification:** Confirmed limitation (documented, verified). Severity Low. Not silent.
 - **Statement:** `<base>/docs/uvm-guide.md#L189-L190`.
 - **Observed:** `uvm_hdl_force("top.d.r[3:0]", 0)` returns 0 and prints `[DPI] error: uvm_hdl_force("top.d.r[3:0]"): forcing part of a signal is not supported; nothing was forced` (U12-12). Whole-signal force, release and deposit work (U12-06 to U12-10).
+- **Reproducer:** check U12-12 in `uvm_suite/u12_hdl.sv`. Command: `XEZIM_UVM_DIR=~/uvm XEZIM_UVM_VERSION=1.2 xezim -uvm -s top --max-time 10ms u12_hdl.sv +UVM_TESTNAME=u12_test`. Log: `uvm_suite/results/<build>/u12_test.log` (exit 0), line `CHECK U12-12 PASS documented limitation: partial force returns 0`.
+- **PCIe impact:** fault injection on a field of a wider register (for example one bit of an LTSSM state vector) cannot be forced from the testbench; the whole signal must be forced.
 - **Workaround:** force the whole signal with the bits to keep re-read and merged.
 
 ### XEZ-UVM-020 to XEZ-UVM-029 · Language defects carried from the earlier evaluation
@@ -560,6 +579,8 @@ Conclusions:
 - No commercial-simulator numbers exist for comparison, so no relative performance claim is made.
 
 ## 08 PCIe project impact
+
+**Applicability to PCIe Gen5 and Gen7.** All limitations in this report concern SystemVerilog language semantics, the UVM library, coverage, assertions or tool infrastructure. None depends on the PCIe generation, link speed or encoding. They apply equally to a Gen5 or a Gen7 UVM environment that uses the affected construct. Only the Gen7 project in this repository was exercised; no Gen5 environment and no commercial PCIe VIP was run, so generation-specific effects (for example of FLIT-mode data structures) are Unverified.
 
 | Area | Impact today | Impact as the project grows |
 |---|---|---|
